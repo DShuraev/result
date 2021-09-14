@@ -7,7 +7,6 @@
 #include <sstream>
 #include <stdexcept>
 #include <type_traits>
-#include <variant>
 
 namespace sundry {  // namespace sundry
   /**
@@ -99,13 +98,21 @@ namespace sundry {  // namespace sundry
    */
   template<typename T, typename E>
   struct Result {
-    using ok_t = Ok<T>;                  ///< Alias for `Ok<T>`.
-    using err_t = Err<E>;                ///< Alias for `Err<E>`.
-    using ok_value_t = T;                ///< Alias for type stored in `T`.
-    using err_value_t = E;               ///< Alias for type stored in `E`.
-    std::variant<ok_t, err_t> storage_;  ///< Variant value storage.
+    using ok_t = Ok<T>;     ///< Alias for `Ok<T>`.
+    using err_t = Err<E>;   ///< Alias for `Err<E>`.
+    using ok_value_t = T;   ///< Alias for type stored in `T`.
+    using err_value_t = E;  ///< Alias for type stored in `E`.
+
+    union {
+      Ok<T> ok_value_;
+      Err<E> err_value_;
+    };
     const bool ok_flag_;  ///< Status flag. `true` if result contains `Ok`,
                           ///< `false` if `Err`.
+    // TODO: add constructors
+    // NOTE: consider placement new
+    Result(Ok<T> value) : ok_flag_(true), ok_value_(value) {}
+    Result(Err<E> value) : ok_flag_(false), err_value_(value) {}
 
     /**
      * @brief Checks if `Ok` contains void.
@@ -151,8 +158,7 @@ namespace sundry {  // namespace sundry
     // TODO: add equally comparable
     template<typename U = T>
     bool contains(const U &value) {
-      return is_ok() &&
-             (std::get<0>(storage_).value == value);  // TODO: change to get_if
+      return is_ok() && ok_value_.value == value;
     }
 
     /**
@@ -167,8 +173,7 @@ namespace sundry {  // namespace sundry
     // TODO: add equally comparable
     template<typename U = E>
     bool contains_err(const U &value) {
-      return is_err() &&
-             (std::get<1>(storage_).value == value);  // TODO: change to get_if
+      return is_err() && err_value_.value == value;
     }
 
     /**
@@ -184,8 +189,7 @@ namespace sundry {  // namespace sundry
     template<typename U>
     T expect(U &&arg) const {
       if(is_err()) throw std::runtime_error(std::forward<U>(arg));
-      if constexpr(!has_void_ok())
-        return std::get<ok_t>(storage_).value;  // this can throw
+      if constexpr(!has_void_ok()) return ok_value_.value;
       else
         return;
     }
@@ -202,8 +206,11 @@ namespace sundry {  // namespace sundry
      */
     template<typename U>
     E expect_err(U &&arg) const {
-      if(is_err()) return std::get<err_t>(storage_).value;  // this can throw
-      throw std::runtime_error(std::forward<U>(arg));
+      if(is_ok()) throw std::runtime_error(std::forward<U>(arg));
+      if constexpr(!has_void_err())
+        return err_value_.value;
+      else
+        return;
     }
 
     /**
@@ -218,8 +225,8 @@ namespace sundry {  // namespace sundry
      */
     template<typename U = T>
     std::optional<U> ok() const noexcept {
-      if(auto p = std::get_if<ok_t>(&storage_))
-        return std::optional<U>(p->value);
+      if(is_ok())
+        return std::optional<U>(ok_value_.value);
       return std::optional<U>();
     }
 
@@ -235,8 +242,8 @@ namespace sundry {  // namespace sundry
      */
     template<typename U = E>
     std::optional<U> err() const noexcept {
-      if(auto p = std::get_if<err_t>(&storage_))
-        return std::optional<U>(p->value);
+      if(is_err())
+        return std::optional<U>(err_value_.value);
       return std::optional<U>();
     }
 
@@ -248,11 +255,11 @@ namespace sundry {  // namespace sundry
      * contains `Err`.
      */
     T unwrap() const {
-      if(is_ok()) return std::get<ok_t>(storage_).value;
+      if(is_ok()) return ok_value_.value;
       std::stringstream err_msg;
       err_msg << "called `Result::unwrap()` on `Err` value";
       if constexpr(Printable<E>)
-        err_msg << ' ' << std::get<err_t>(storage_).value;
+        err_msg << ' ' << err_value_.value;
       err_msg << std::endl;
       throw std::runtime_error(err_msg.str());
     }
@@ -265,11 +272,11 @@ namespace sundry {  // namespace sundry
      * contains `Ok`.
      */
     E unwrap_err() const {
-      if(is_err()) return std::get<err_t>(storage_).value;
+      if(is_err()) return err_value_.value;
       std::stringstream err_msg;
       err_msg << "called `Result::unwrap_err()` on `Ok` value";
       if constexpr(Printable<T>) {
-        err_msg << ' ' << std::get<ok_t>(storage_).value;
+        err_msg << ' ' << ok_value_.value;
       }
       err_msg << std::endl;
       throw std::runtime_error(err_msg.str());
@@ -313,21 +320,21 @@ namespace sundry {  // namespace sundry
 
   template<typename T, typename E>
   Result<T, E> make_ok(const T &value) {
-    return {Ok(value), true};
+    return {Ok(value)};
   }
 
   template<typename T, typename E>
   Result<void, E> make_ok() {
-    return {Ok<void> {}, true};
+    return {Ok<void> {}};
   }
 
   template<typename T, typename E>
   Result<T, E> make_err(const E &value) {
-    return {Err(value), false};
+    return {Err(value)};
   }
 
   template<typename T, typename E>
   Result<T, E> make_err() {
-    return {Err<void> {}, false};
+    return {Err<void> {}};
   }
 }  // namespace sundry
