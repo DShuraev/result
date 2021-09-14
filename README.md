@@ -26,5 +26,4 @@ If you want to build coverage you will need `gcov` and `gcovr` installed on your
 
 # Documentation
 
-To build documentation, install `Docygen`. You might want to install `graphviz` as well.
-
+To build documentation, install `Doxygen`. You might want to install `graphviz` as well.
