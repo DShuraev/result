@@ -213,3 +213,147 @@ SCENARIO_TEMPLATE("Result - essential methods, Err status", T,
     }
   }
 }
+
+template<typename OK, typename ERR, auto S, auto F>
+struct ConstructorArgs {
+  using T = OK;
+  using E = ERR;
+  constexpr static decltype(S) ok_value = S;
+  constexpr static decltype(F) err_value = F;
+};
+
+#define result_constructor_args ConstructorArgs<int, int, 1, 2>
+
+SCENARIO_TEMPLATE("Result - constructor test", T, result_constructor_args) {
+  using ok_t = typename T::T;
+  using err_t = typename T::E;
+  auto ok_v = T::ok_value;
+  auto err_v = T::err_value;
+
+  GIVEN("Ok<T>, Err<E>") {
+    auto ok = Ok<ok_t> {ok_v};
+    auto err = Err<err_t> {err_v};
+    WHEN("passing object to constructor as lvalue") {
+      auto ok_r = Result<ok_t, err_t>(ok);
+      auto err_r = Result<ok_t, err_t>(err);
+      THEN("copy constructor is called") {
+        CHECK_UNARY(ok_r.contains(ok_v));
+        CHECK_UNARY(err_r.contains_err(err_v));
+      }
+    }
+    WHEN("passing object to constructor as rvalue") {
+      auto ok_r = Result<ok_t, err_t>(std::move(ok));
+      auto err_r = Result<ok_t, err_t>(std::move(err));
+      THEN("move constructor is called") {
+        CHECK_UNARY(ok_r.contains(ok_v));
+        CHECK_UNARY(err_r.contains_err(err_v));
+      }
+    }
+    WHEN("assigning to Result variable from lvalue") {
+      auto ok_r = make_ok<ok_t, err_t>({});
+      auto err_r = make_err<ok_t, err_t>({});
+      REQUIRE_UNARY_FALSE(ok_r.contains(ok_v));
+      REQUIRE_UNARY_FALSE(err_r.contains_err(err_v));
+      AND_WHEN("ok flag is the same") {
+        THEN("copy assignment is called") {
+          ok_r = ok;
+          CHECK_UNARY(ok_r.contains(ok_v));
+          err_r = err;
+          CHECK_UNARY(err_r.contains_err(err_v));
+        }
+      }
+      AND_WHEN("ok flag is different") {
+        THEN("`std::runtime_error` is throws") {
+          CHECK_THROWS_AS(ok_r = err, const std::runtime_error &);
+          CHECK_THROWS_AS(err_r = ok, const std::runtime_error &);
+        }
+      }
+    }
+    WHEN("assigning to Result variable from rvalue") {
+      auto ok_r = make_ok<ok_t, err_t>({});
+      auto err_r = make_err<ok_t, err_t>({});
+      REQUIRE_UNARY_FALSE(ok_r.contains(ok_v));
+      REQUIRE_UNARY_FALSE(err_r.contains_err(err_v));
+      AND_WHEN("ok flag is the same") {
+        THEN("move assignment is called") {
+          ok_r = std::move(ok);
+          CHECK_UNARY(ok_r.contains(ok_v));
+          err_r = std::move(err);
+          CHECK_UNARY(err_r.contains_err(err_v));
+        }
+      }
+      AND_WHEN("ok flag is different") {
+        THEN("`std::runtime_error` is thrown") {
+          CHECK_THROWS_AS(ok_r = std::move(err), const std::runtime_error &);
+          CHECK_THROWS_AS(err_r = std::move(ok), const std::runtime_error &);
+        }
+      }
+    }
+  }
+  GIVEN("Result<T,E>") {
+    auto ok = make_ok<ok_t, err_t>(ok_v);
+    auto err = make_err<ok_t, err_t>(err_v);
+    REQUIRE_UNARY(ok.contains(ok_v));
+    REQUIRE_UNARY(err.contains_err(err_v));
+    WHEN("passing object to constructor as lvalue") {
+      auto ok_r = Result<ok_t, err_t>(ok);
+      auto err_r = Result<ok_t, err_t>(err);
+      THEN("copy constructor is called") {
+        CHECK_UNARY(ok_r.contains(ok_v));
+        CHECK_UNARY(err_r.contains_err(err_v));
+      }
+    }
+    WHEN("passing object to constructor as rvalue") {
+      auto ok_r = Result<ok_t, err_t>(std::move(ok));
+      auto err_r = Result<ok_t, err_t>(std::move(err));
+      THEN("move constructor is called") {
+        CHECK_UNARY(ok_r.contains(ok_v));
+        CHECK_UNARY(err_r.contains_err(err_v));
+      }
+    }
+    WHEN("assigning to Result lvalue") {
+      auto ok_r = make_ok<ok_t, err_t>({});
+      auto err_r = make_err<ok_t, err_t>({});
+      AND_WHEN("success flag is the same") {
+        REQUIRE_EQ(ok.is_ok(), ok_r.is_ok());
+        REQUIRE_EQ(err.is_ok(), err_r.is_ok());
+        THEN("copy assignment is called") {
+          ok_r = ok;
+          CHECK_UNARY(ok_r.contains(ok_v));
+          err_r = err;
+          CHECK_UNARY(err_r.contains_err(err_v));
+        }
+      }
+      AND_WHEN("success flag is different") {
+        REQUIRE_NE(err.is_ok(), ok_r.is_ok());
+        REQUIRE_NE(ok.is_ok(), err_r.is_ok());
+        THEN("`std::runtime_error` is throws") {
+          CHECK_THROWS_AS(err_r = ok, const std::runtime_error &);
+          CHECK_THROWS_AS(ok_r = err, const std::runtime_error &);
+        }
+      }
+    }
+    WHEN("assigning to Result rvalue") {
+      auto ok_r = make_ok<ok_t, err_t>({});
+      auto err_r = make_err<ok_t, err_t>({});
+      AND_WHEN("success flag is the same") {
+        REQUIRE_EQ(ok.is_ok(), ok_r.is_ok());
+        REQUIRE_EQ(err.is_ok(), err_r.is_ok());
+        THEN("copy assignment is called") {
+          ok_r = std::move(ok);
+          CHECK_UNARY(ok_r.contains(ok_v));
+          err_r = std::move(err);
+          CHECK_UNARY(err_r.contains_err(err_v));
+        }
+      }
+      AND_WHEN("success flag is different") {
+        REQUIRE_NE(err.is_ok(), ok_r.is_ok());
+        REQUIRE_NE(ok.is_ok(), err_r.is_ok());
+        THEN("`std::runtime_error` is throws") {
+          CHECK_THROWS_AS(err_r = std::move(ok), const std::runtime_error &);
+          CHECK_THROWS_AS(ok_r = std::move(err), const std::runtime_error &);
+        }
+      }
+    }
+  }
+}
