@@ -111,8 +111,86 @@ namespace sundry {  // namespace sundry
                           ///< `false` if `Err`.
     // TODO: add constructors
     // NOTE: consider placement new
-    Result(Ok<T> value) : ok_flag_(true), ok_value_(value) {}
-    Result(Err<E> value) : ok_flag_(false), err_value_(value) {}
+    // Result(Ok<T> value) : ok_flag_(true), ok_value_(value) {}
+    // Result(Err<E> value) : ok_flag_(false), err_value_(value) {}
+    Result(const Ok<T> &value) : ok_flag_(true), ok_value_(value) {}
+    Result(const Err<E> &value) : ok_flag_(false), err_value_(value) {}
+    Result(Ok<T> &&value) : ok_flag_(true), ok_value_(value) {}
+    Result(Err<E> &&value) : ok_flag_(false), err_value_(value) {}
+    Result(const Result<T, E> &other) : ok_flag_(other.ok_flag_) {
+      if(ok_flag_)
+        ok_value_ = other.ok_value_;
+      else
+        err_value_ = other.err_value_;
+    }
+
+    Result(Result<T, E> &&other) : ok_flag_(ok_flag_) {
+      if(ok_flag_)
+        ok_value_ = std::move(other.ok_value_);
+      else
+        err_value_ = std::move(other.err_value_);
+    }
+
+    Result<T, E> &operator=(const Ok<T> &other) {
+      if(!is_ok())
+        throw std::runtime_error(
+            "Attempt to assign `Ok` value to `Result` with error flag set.");
+      ok_value_ = other;
+      return *this;
+    }
+
+    Result<T, E> &operator=(const Err<E> &other) {
+      if(!is_err())
+        throw std::runtime_error(
+            "Attempt to assign `Err` value to `Result` with error flag set.");
+      err_value_ = other;
+      return *this;
+    }
+
+    Result<T, E> &operator=(Ok<T> &&other) {
+      if(!is_ok())
+        throw std::runtime_error(
+            "Attempt to assign `Ok` value to `Result` with error flag set.");
+      ok_value_ = std::move(other);
+      return *this;
+    }
+
+    Result<T, E> &operator=(Err<E> &&other) {
+      if(!is_err())
+        throw std::runtime_error(
+            "Attempt to assign `Err` value to `Result` with error flag set.");
+      err_value_ = std::move(other);
+      return *this;
+    }
+
+    // Warning: this can throw
+    Result<T, E> &operator=(const Result<T, E> &other) {
+      if(this != &other) {
+        if(is_ok() != other.is_ok()) {
+          throw std::runtime_error(
+              "Assigned Result has success flag which is different from "
+              "the variable it is being assigned to.");
+        }
+        if(is_ok())
+          ok_value_ = (Ok<T>) other.ok_value_;
+        else
+          err_value_ = (Err<E>) other.err_value_;
+      }
+      return *this;
+    }
+
+    Result<T, E> &operator=(Result<T, E> &&other) {
+      if(is_ok() != other.is_ok()) {
+        throw std::runtime_error(
+            "Assigned Result has success flag which is different from "
+            "the variable it is being assigned to.");
+      }
+      if(is_ok())
+        ok_value_ = (Ok<T>) std::move(other.ok_value_);
+      else
+        err_value_ = (Err<E>) std::move(other.err_value_);
+      return *this;
+    }
 
     /**
      * @brief Checks if `Ok` contains void.
