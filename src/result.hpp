@@ -267,7 +267,8 @@ namespace sundry {  // namespace sundry
     template<typename U>
     T expect(U &&arg) const {
       if(is_err()) throw std::runtime_error(std::forward<U>(arg));
-      if constexpr(!has_void_ok()) return ok_value_.value;
+      if constexpr(!has_void_ok())
+        return ok_value_.value;
       else
         return;
     }
@@ -303,8 +304,7 @@ namespace sundry {  // namespace sundry
      */
     template<typename U = T>
     std::optional<U> ok() const noexcept {
-      if(is_ok())
-        return std::optional<U>(ok_value_.value);
+      if(is_ok()) return std::optional<U>(ok_value_.value);
       return std::optional<U>();
     }
 
@@ -320,8 +320,7 @@ namespace sundry {  // namespace sundry
      */
     template<typename U = E>
     std::optional<U> err() const noexcept {
-      if(is_err())
-        return std::optional<U>(err_value_.value);
+      if(is_err()) return std::optional<U>(err_value_.value);
       return std::optional<U>();
     }
 
@@ -336,8 +335,7 @@ namespace sundry {  // namespace sundry
       if(is_ok()) return ok_value_.value;
       std::stringstream err_msg;
       err_msg << "called `Result::unwrap()` on `Err` value";
-      if constexpr(Printable<E>)
-        err_msg << ' ' << err_value_.value;
+      if constexpr(Printable<E>) err_msg << ' ' << err_value_.value;
       err_msg << std::endl;
       throw std::runtime_error(err_msg.str());
     }
@@ -353,9 +351,7 @@ namespace sundry {  // namespace sundry
       if(is_err()) return err_value_.value;
       std::stringstream err_msg;
       err_msg << "called `Result::unwrap_err()` on `Ok` value";
-      if constexpr(Printable<T>) {
-        err_msg << ' ' << ok_value_.value;
-      }
+      if constexpr(Printable<T>) { err_msg << ' ' << ok_value_.value; }
       err_msg << std::endl;
       throw std::runtime_error(err_msg.str());
     }
