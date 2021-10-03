@@ -10,6 +10,80 @@
 
 using namespace sundry;
 
+SCENARIO("Ok/Err conversion") {
+  GIVEN("compatible types T,U") {
+    using T = int;
+    using U = float;
+    REQUIRE_UNARY(std::is_convertible_v<U, T>);
+    auto val = 1.0;
+    WHEN("Ok<T> and Ok<U> are formed") {
+      auto u = Ok<U> {(U) val};
+      auto t = Ok<T> {(T) val};
+      THEN("Ok<U> can be converted to Ok<T>") {
+        CHECK_EQ(((Ok<T>) u).value, t.value);
+      }
+      THEN("Ok<U> can be explicitly converted to T") {
+        CHECK_EQ((T) u, t.value);
+      }
+    }
+    WHEN("Err<T> and Err<U> are formed") {
+      auto u = Err<U> {(U) val};
+      auto t = Err<T> {(T) val};
+      THEN("Err<U> can be converted to Err<T>") {
+        CHECK_EQ(((Err<T>) u).value, t.value);
+      }
+      THEN("Err<U> can be explicitly converted to T") {
+        CHECK_EQ((T) u, t.value);
+      }
+    }
+  }
+}
+
+SCENARIO("Ok/Err construction/assignment") {
+  GIVEN("value of type `T`") {
+    using T = int;
+    T value = 1;
+    auto ok = Ok<T> {value};
+    auto err = Err<T> {value};
+    WHEN("calling constructor with lvalue") {
+      auto r = Ok<T>(ok);
+      auto e = Err<T>(err);
+      THEN("default copy constructor is called") {
+        CHECK_EQ(r.value, ok.value);
+        CHECK_EQ(e.value, err.value);
+      }
+    }
+    WHEN("calling constructor with rvalue") {
+      auto r = Ok<T>(std::move(ok));
+      auto e = Err<T>(std::move(ok));
+      THEN("default move constructor is called") {
+        CHECK_EQ(r.value, value);
+        CHECK_EQ(e.value, value);
+      }
+    }
+    WHEN("assigning from lvalue") {
+      auto r = Ok<T> {};
+      r = ok;
+      auto e = Err<T> {};
+      e = err;
+      THEN("default copy assignment operator is called") {
+        CHECK_EQ(r.value, ok.value);
+        CHECK_EQ(e.value, err.value);
+      }
+    }
+    WHEN("assigning from rvalue") {
+      auto r = Ok<T> {};
+      r = std::move(ok);
+      auto e = Err<T> {};
+      e = std::move(err);
+      THEN("default copy assignment operator is called") {
+        CHECK_EQ(r.value, value);
+        CHECK_EQ(e.value, value);
+      }
+    }
+  }
+}
+
 struct DummyPOD {
   const int x;
 };
@@ -224,7 +298,8 @@ struct ConstructorArgs {
 
 #define result_constructor_args ConstructorArgs<int, int, 1, 2>
 
-SCENARIO_TEMPLATE("Result - constructor test", T, result_constructor_args) {
+SCENARIO_TEMPLATE("Result - constructor/assignment test, same type", T,
+                  result_constructor_args) {
   using ok_t = typename T::T;
   using err_t = typename T::E;
   auto ok_v = T::ok_value;

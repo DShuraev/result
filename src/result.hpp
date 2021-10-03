@@ -31,6 +31,18 @@ namespace sundry {  // namespace sundry
     T value;            ///< Stored value.
 
     template<typename U,
+             typename = typename std::enable_if_t<std::is_convertible_v<T, U>>>
+    constexpr operator Ok<U>() const noexcept {
+      return Ok<U> {(U) value};
+    }
+
+    template<typename U,
+             typename = typename std::enable_if_t<std::is_convertible_v<T, U>>>
+    constexpr operator U() const noexcept {
+      return (U) value;
+    }
+
+    template<typename U,
              typename = std::enable_if_t<std::equality_comparable_with<T, U>>>
     bool operator==(const Ok<U> &other) const noexcept {
       return value == other.value;
@@ -64,6 +76,18 @@ namespace sundry {  // namespace sundry
   struct Err {
     using value_t = T;
     T value;
+
+    template<typename U,
+             typename = typename std::enable_if_t<std::is_convertible_v<T, U>>>
+    constexpr operator Err<U>() const noexcept {
+      return Err<U> {(U) value};
+    }
+
+    template<typename U,
+             typename = typename std::enable_if_t<std::is_convertible_v<T, U>>>
+    constexpr operator U() const noexcept {
+      return (U) value;
+    }
 
     template<typename U,
              typename = std::enable_if_t<std::equality_comparable_with<T, U>>>
@@ -117,6 +141,7 @@ namespace sundry {  // namespace sundry
     Result(const Err<E> &value) : ok_flag_(false), err_value_(value) {}
     Result(Ok<T> &&value) : ok_flag_(true), ok_value_(value) {}
     Result(Err<E> &&value) : ok_flag_(false), err_value_(value) {}
+
     Result(const Result<T, E> &other) : ok_flag_(other.ok_flag_) {
       if(ok_flag_)
         ok_value_ = other.ok_value_;
@@ -130,6 +155,24 @@ namespace sundry {  // namespace sundry
       else
         err_value_ = std::move(other.err_value_);
     }
+
+    template<typename U, typename = typename std::enable_if_t<
+                             std::is_convertible_v<Ok<U>, Ok<T>>>>
+    Result(const Ok<U> &value) : ok_flag_(true), ok_value_((Ok<T>) value) {}
+
+    template<typename U,
+             typename = std::enable_if_t<std::is_convertible_v<Ok<U>, Ok<T>>>>
+    Result(Ok<U> &&value)
+        : ok_flag_(true), ok_value_((Ok<T>) std::move(value)) {}
+
+    template<typename U, typename = typename std::enable_if_t<
+                             std::is_convertible_v<Err<U>, Err<T>>>>
+    Result(const Err<U> &value) : ok_flag_(false), ok_value_((Err<T>) value) {}
+
+    template<typename U,
+             typename = std::enable_if_t<std::is_convertible_v<Err<U>, Err<T>>>>
+    Result(Err<U> &&value)
+        : ok_flag_(false), ok_value_((Err<T>) std::move(value)) {}
 
     Result<T, E> &operator=(const Ok<T> &other) {
       if(!is_ok())
